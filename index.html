@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASICS 懇親会クイズ大会</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #1f2937; }
+    .app-container { min-height: 100vh; display: flex; flex-direction: column; }
+    .fade-in { animation: fadeIn .35s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .asics-bg { background-color: #f0f4f8; position: relative; overflow-x: hidden; z-index: 0; }
+    .asics-bg::before { content:''; position:fixed; top:-50%; left:-50%; width:200%; height:200%; background:repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(0,30,98,.03) 40px,rgba(0,30,98,.03) 80px); z-index:-1; pointer-events:none; }
+    .asics-blue { color:#001E62; }
+  </style>
+</head>
+<body class="asics-bg">
+<div id="app" class="app-container">
+  <div id="modeSelection" class="flex-1 flex flex-col items-center justify-center p-6 fade-in">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/b/b1/Asics_Logo.svg" alt="ASICS" class="h-16 md:h-24 mb-8">
+    <h1 class="text-4xl md:text-5xl font-extrabold mb-8 text-center tracking-wider asics-blue">懇親会クイズ大会</h1>
+    <p class="text-gray-600 mb-10 text-center text-lg max-w-md">役割を選択してください<br><span class="text-sm text-red-500 font-bold mt-2 inline-block shadow-sm bg-red-50 px-3 py-1 rounded-full">⚠️ 5問間違えると脱落（ゲームオーバー）</span></p>
+    <div class="flex flex-col md:flex-row gap-6 w-full max-w-2xl justify-center">
+      <button onclick="app.setMode('host')" class="group flex flex-col items-center p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-indigo-500 w-full md:w-1/2">
+        <div class="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-indigo-500 transition-colors"><i data-lucide="monitor-play" class="w-10 h-10 text-indigo-600 group-hover:text-white"></i></div>
+        <h2 class="text-2xl font-bold mb-2">ホスト（進行役）</h2><p class="text-gray-500 text-center">スクリーンに投影して進行します</p>
+      </button>
+      <button onclick="app.setMode('player')" class="group flex flex-col items-center p-8 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all border-2 border-transparent hover:border-emerald-500 w-full md:w-1/2">
+        <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 group-hover:bg-emerald-500 transition-colors"><i data-lucide="smartphone" class="w-10 h-10 text-emerald-600 group-hover:text-white"></i></div>
+        <h2 class="text-2xl font-bold mb-2">参加者</h2><p class="text-gray-500 text-center">スマートフォンで回答します</p>
+      </button>
+    </div>
+  </div>
+
+  <div id="hostView" class="hidden flex-1 flex flex-col bg-gray-50 bg-opacity-90 min-h-screen">
+    <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center"><div class="flex items-center gap-3"><div class="bg-indigo-600 p-2 rounded-lg"><i data-lucide="monitor" class="text-white w-6 h-6"></i></div><h1 class="text-2xl font-bold">ホスト画面</h1></div><button onclick="app.resetGame()" class="text-gray-500 hover:text-gray-800"><i data-lucide="rotate-ccw" class="w-5 h-5"></i></button></header>
+    <main class="flex-1 flex flex-col p-6">
+      <div id="hostLobby" class="hidden flex-1 flex flex-col items-center justify-center fade-in">
+        <div class="bg-white p-10 rounded-3xl shadow-xl w-full max-w-4xl flex flex-col md:flex-row items-center gap-12 border-t-8 border-[#001E62]">
+          <div class="flex-1 text-center md:text-left"><h2 class="text-4xl font-extrabold mb-4">ASICS クイズチャレンジへようこそ！</h2><p class="text-xl text-gray-600 mb-8">QRコードをスキャンして参加してください。</p><div class="inline-flex items-center gap-3 bg-indigo-50 px-6 py-4 rounded-xl border border-indigo-100"><i data-lucide="users" class="text-indigo-600 w-8 h-8"></i><div class="text-left"><div class="text-sm text-indigo-600 font-semibold">現在の参加人数</div><div class="text-3xl font-bold text-indigo-900" id="playerCount">0</div></div></div></div>
+          <div class="flex flex-col items-center"><div class="bg-white p-4 rounded-2xl shadow-inner border-2 border-gray-100 mb-4"><div id="qrcode" class="w-52 h-52 flex items-center justify-center"></div></div><p class="text-sm text-gray-500 text-center">URL:<br><span class="font-mono bg-gray-100 px-2 py-1 rounded" id="joinUrlDisplay">...</span></p></div>
+        </div>
+        <button onclick="app.startQuiz()" class="mt-12 px-12 py-4 bg-[#001E62] hover:bg-blue-900 text-white text-xl font-bold rounded-full shadow-lg">ゲーム開始</button>
+      </div>
+      <div id="hostQuestionView" class="hidden flex-1 flex flex-col items-center justify-center w-full max-w-5xl mx-auto fade-in">
+        <div class="w-full mb-8"><div class="flex justify-between text-sm font-semibold text-gray-500 mb-2"><span id="questionProgressText"></span><span id="timerText" class="text-indigo-600 font-bold text-lg"></span></div><div class="w-full bg-gray-200 rounded-full h-3"><div id="questionProgressBar" class="bg-[#001E62] h-3 rounded-full" style="width:0%"></div></div></div>
+        <div class="bg-white w-full rounded-3xl shadow-lg p-10 mb-8 text-center border-t-8 border-[#001E62]"><h2 id="hostQuestionText" class="text-3xl md:text-4xl font-bold leading-tight"></h2></div>
+        <div id="hostOptionsContainer" class="w-full grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        <div class="mt-8 flex items-center justify-between w-full"><div class="text-gray-500 font-semibold">回答済み: <span id="answeredCount" class="text-indigo-600 text-xl">0</span> / <span id="totalPlayersText">0</span> 人</div><button onclick="app.forceShowResults()" class="px-8 py-3 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl shadow">結果を表示</button></div>
+      </div>
+      <div id="hostResultView" class="hidden flex-1 flex flex-col items-center justify-center w-full max-w-5xl mx-auto fade-in">
+        <h2 class="text-3xl font-bold mb-2">みんなの回答は？</h2><p class="text-gray-500 mb-8" id="resultQuestionText"></p><div class="bg-white w-full rounded-3xl shadow-lg p-8 mb-8"><div class="relative h-64 md:h-96 w-full"><canvas id="resultChart"></canvas></div></div>
+        <div id="correctAnswerBox" class="w-full bg-green-50 border-l-4 border-green-500 p-6 rounded-r-xl shadow-sm mb-8"><h3 class="text-lg font-bold text-green-800">正解は：</h3><p id="correctAnswerText" class="text-2xl font-bold text-green-700 mt-1"></p></div>
+        <button onclick="app.nextQuestion()" class="px-12 py-4 bg-[#001E62] hover:bg-blue-900 text-white text-xl font-bold rounded-full shadow-lg">次の問題へ</button>
+      </div>
+      <div id="hostEndView" class="hidden flex-1 flex flex-col items-center justify-center w-full max-w-4xl mx-auto fade-in"><div class="text-center mb-10"><div class="inline-block p-4 bg-yellow-100 rounded-full mb-4"><i data-lucide="trophy" class="w-16 h-16 text-yellow-500"></i></div><h2 class="text-5xl font-extrabold mb-4">クイズ終了！</h2><p class="text-xl text-gray-600">最終ランキング</p></div><div class="bg-white w-full rounded-3xl shadow-xl overflow-hidden"><div class="bg-[#001E62] px-8 py-4"><h3 class="text-white text-xl font-bold">ランキング Top 5</h3></div><ul id="leaderboardList" class="divide-y divide-gray-100"></ul></div><button onclick="app.resetGame()" class="mt-10 px-8 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl">トップへ戻る</button></div>
+    </main>
+  </div>
+
+  <div id="playerView" class="hidden flex-1 flex flex-col bg-gray-100 bg-opacity-95 min-h-screen z-10 relative">
+    <header class="bg-[#001E62] text-white shadow-md px-4 py-3 flex justify-between items-center sticky top-0 z-10"><div class="font-bold text-lg flex items-center gap-2"><i data-lucide="smartphone"></i> クイズ大会</div><div id="playerScoreDisplay" class="hidden font-mono bg-blue-800 px-3 py-1 rounded-full text-sm border border-blue-600">スコア: 0</div></header>
+    <main class="flex-1 flex flex-col p-4 relative">
+      <div id="playerLogin" class="hidden flex-1 flex flex-col justify-center max-w-md mx-auto w-full fade-in"><div class="bg-white p-8 rounded-3xl shadow-lg text-center"><div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="user" class="w-10 h-10 text-[#001E62]"></i></div><h2 class="text-2xl font-bold mb-2">ゲームに参加する</h2><p class="text-gray-500 mb-8 text-sm">ニックネームを入力してください</p><input type="text" id="playerNameInput" placeholder="例: ヤマダ" class="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl mb-6 text-lg text-center focus:outline-none focus:ring-2 focus:ring-[#001E62]" maxlength="10"><button onclick="app.joinGame()" class="w-full py-4 bg-[#001E62] hover:bg-blue-900 text-white text-lg font-bold rounded-xl shadow-md">入室する</button></div></div>
+      <div id="playerWaiting" class="hidden flex-1 flex flex-col items-center justify-center text-center fade-in"><div class="relative w-32 h-32 mb-8"><div class="absolute inset-0 bg-blue-200 rounded-full animate-ping opacity-75"></div><div class="relative bg-white w-full h-full rounded-full shadow-lg flex items-center justify-center z-10"><i data-lucide="loader" class="w-12 h-12 text-[#001E62] animate-spin"></i></div></div><h2 class="text-2xl font-bold mb-2" id="playerWaitingTitle">参加しました！</h2><p class="text-gray-600" id="playerWaitingDesc">ゲーム開始をお待ちください...</p></div>
+      <div id="playerQuestionView" class="hidden flex-1 flex flex-col max-w-md mx-auto w-full fade-in"><div class="flex justify-between items-center mb-4 px-2 bg-white bg-opacity-50 p-2 rounded-lg"><span class="text-sm font-bold text-[#001E62] bg-white px-3 py-1 rounded-full shadow-sm" id="playerQuestionNum"></span><div class="flex items-center gap-2 text-red-600 font-bold bg-white px-3 py-1 rounded-full shadow-sm"><i data-lucide="clock" class="w-4 h-4"></i><span id="playerTimer">30</span>s</div></div><div class="bg-white p-6 rounded-2xl shadow-sm mb-6 border-t-4 border-[#001E62]"><h3 id="playerQuestionText" class="text-xl font-bold text-center leading-relaxed"></h3></div><div id="playerOptionsContainer" class="flex flex-col gap-4 flex-1"></div></div>
+      <div id="playerAnswered" class="hidden flex-1 flex flex-col items-center justify-center text-center fade-in"><div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6"><i data-lucide="check" class="w-12 h-12 text-green-600"></i></div><h2 class="text-2xl font-bold mb-2">回答完了！</h2><p class="text-gray-600 mb-6">スクリーンに注目してください</p><div class="bg-white p-4 rounded-xl shadow-sm"><p class="text-sm text-gray-500 mb-1">あなたの回答：</p><p class="text-lg font-bold text-[#001E62]" id="playerSelectedOptionText"></p></div></div>
+      <div id="playerEliminated" class="hidden flex-1 flex flex-col items-center justify-center text-center fade-in"><div class="w-32 h-32 bg-red-100 rounded-full flex items-center justify-center mb-6 border-4 border-red-500 shadow-lg"><i data-lucide="skull" class="w-16 h-16 text-red-600"></i></div><h2 class="text-4xl font-extrabold text-red-600 mb-2 tracking-widest">脱落</h2><p class="text-gray-800 mb-6 font-bold text-lg">5問不正解となったため、脱落しました。</p></div>
+      <div id="playerEndView" class="hidden flex-1 flex flex-col items-center justify-center text-center fade-in"><div class="w-24 h-24 bg-yellow-100 rounded-full flex items-center justify-center mb-6"><i data-lucide="star" class="w-12 h-12 text-yellow-600"></i></div><h2 class="text-3xl font-bold mb-2">ゲーム終了</h2><p class="text-gray-600 mb-8">ご参加ありがとうございました！</p><div class="bg-white p-6 rounded-2xl shadow-md w-full max-w-xs"><p class="text-sm text-gray-500 mb-2">あなたの最終スコア</p><p class="text-5xl font-black text-[#001E62]" id="playerFinalScore">0</p></div></div>
+    </main>
+  </div>
+</div>
+<div id="toast" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2"><i data-lucide="info" class="w-5 h-5"></i><span id="toastMessage">通知</span></div>
+<script>
+const THEME_COLORS = [
+  { bg:'bg-blue-600', hover:'hover:bg-blue-700', border:'border-blue-700', text:'text-blue-600', hex:'#2563eb' },
+  { bg:'bg-rose-500', hover:'hover:bg-rose-600', border:'border-rose-600', text:'text-rose-500', hex:'#f43f5e' },
+  { bg:'bg-amber-500', hover:'hover:bg-amber-600', border:'border-amber-600', text:'text-amber-500', hex:'#f59e0b' },
+  { bg:'bg-teal-500', hover:'hover:bg-teal-600', border:'border-teal-600', text:'text-teal-500', hex:'#14b8a6' }
+];
+class QuizApp {
+  constructor(){
+    this.api='/.netlify/functions/quiz-state'; this.mode=null; this.state=null; this.poller=null; this.chartInstance=null; this.myPlayerId=localStorage.getItem('quiz_player_id')||('p_'+Math.random().toString(36).slice(2,11)); localStorage.setItem('quiz_player_id', this.myPlayerId); this.myName=localStorage.getItem('quiz_player_name')||''; this.lastVersion=0; this.timerInterval=null;
+    document.getElementById('joinUrlDisplay').textContent = location.origin + location.pathname + '?mode=player';
+  }
+  async apiPost(action, payload={}){ const r=await fetch(this.api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload})}); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+  async apiGet(){ const r=await fetch(this.api+'?t='+Date.now()); if(!r.ok) throw new Error(await r.text()); return r.json(); }
+  hideAll(){ ['modeSelection','hostView','playerView','hostLobby','hostQuestionView','hostResultView','hostEndView','playerLogin','playerWaiting','playerQuestionView','playerAnswered','playerEliminated','playerEndView'].forEach(id=>document.getElementById(id)?.classList.add('hidden')); }
+  show(id){ const el=document.getElementById(id); if(el){ el.classList.remove('hidden'); el.classList.remove('fade-in'); void el.offsetWidth; el.classList.add('fade-in'); } if(window.lucide) lucide.createIcons(); }
+  toast(msg){ document.getElementById('toastMessage').textContent=msg; const t=document.getElementById('toast'); t.classList.remove('opacity-0'); setTimeout(()=>t.classList.add('opacity-0'),2500); }
+  setMode(mode){ this.mode=mode; this.hideAll(); if(mode==='host') this.initHost(); else this.initPlayer(); }
+  startPolling(){ if(this.poller) clearInterval(this.poller); this.refresh(); this.poller=setInterval(()=>this.refresh(),1000); }
+  async refresh(){ try{ const s=await this.apiGet(); this.state=s; this.renderState(s); }catch(e){ console.error(e); this.toast('接続を確認してください'); } }
+  initHost(){ this.show('hostView'); this.show('hostLobby'); const q=document.getElementById('qrcode'); q.innerHTML=''; new QRCode(q,{text:location.origin+location.pathname+'?mode=player',width:208,height:208,colorDark:'#001E62',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H}); this.startPolling(); }
+  initPlayer(){ this.show('playerView'); if(this.myName){ document.getElementById('playerNameInput').value=this.myName; } this.show('playerLogin'); this.startPolling(); setTimeout(()=>document.getElementById('playerNameInput')?.focus(),100); }
+  async joinGame(){ const name=document.getElementById('playerNameInput').value.trim(); if(!name){ this.toast('ニックネームを入力してください！'); return; } this.myName=name; localStorage.setItem('quiz_player_name',name); await this.apiPost('join',{playerId:this.myPlayerId,name}); this.show('playerView'); this.show('playerWaiting'); this.toast('入室しました'); await this.refresh(); }
+  async resetGame(){ await this.apiPost('reset'); this.lastVersion=0; this.refresh(); }
+  async startQuiz(){ await this.apiPost('start'); this.refresh(); }
+  async nextQuestion(){ await this.apiPost('next'); this.refresh(); }
+  async forceShowResults(){ await this.apiPost('showResults'); this.refresh(); }
+  async submitAnswer(i,opt,btn){ if(this.timerInterval) clearInterval(this.timerInterval); document.querySelectorAll('#playerOptionsContainer button').forEach(b=>b.disabled=true); btn.classList.add('ring-4','ring-blue-200'); await this.apiPost('answer',{playerId:this.myPlayerId,optionIndex:i}); this.hideAll(); this.show('playerView'); this.show('playerAnswered'); document.getElementById('playerSelectedOptionText').textContent=String.fromCharCode(65+i)+'. '+opt; }
+  renderState(s){ if(!this.mode) return; if(this.mode==='host') this.renderHost(s); if(this.mode==='player') this.renderPlayer(s); }
+  renderHost(s){ this.show('hostView'); document.getElementById('playerCount').textContent=Object.keys(s.players||{}).length; const active=Object.values(s.players||{}).filter(p=>!p.isEliminated).length; document.getElementById('totalPlayersText').textContent=active;
+    if(s.phase==='lobby'){ this.hideAll(); this.show('hostView'); this.show('hostLobby'); return; }
+    if(s.phase==='question'){ this.hideAll(); this.show('hostView'); this.show('hostQuestionView'); this.renderQuestionHost(s); return; }
+    if(s.phase==='result'){ this.hideAll(); this.show('hostView'); this.show('hostResultView'); this.renderResultHost(s); return; }
+    if(s.phase==='end'){ this.hideAll(); this.show('hostView'); this.show('hostEndView'); this.renderLeaderboard(s); }
+  }
+  renderQuestionHost(s){ const q=s.currentQuestion; if(!q) return; document.getElementById('hostQuestionText').textContent=q.text; document.getElementById('questionProgressText').textContent=`問題 ${s.currentQuestionIndex+1} / ${s.totalQuestions}`; document.getElementById('questionProgressBar').style.width=`${((s.currentQuestionIndex)/s.totalQuestions)*100}%`; const answered=Object.values(s.players||{}).filter(p=>!p.isEliminated && p.currentAnswer!==null).length; document.getElementById('answeredCount').textContent=answered; document.getElementById('hostOptionsContainer').innerHTML=q.options.map((opt,i)=>`<div class="${THEME_COLORS[i].bg} text-white p-6 rounded-2xl shadow-md flex items-center gap-4 border-b-4 ${THEME_COLORS[i].border}"><div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-xl font-bold">${String.fromCharCode(65+i)}</div><span class="text-2xl font-bold">${opt}</span></div>`).join(''); this.renderCountdown(s); }
+  renderCountdown(s){ const q=s.currentQuestion; if(!q) return; const update=()=>{ const left=Math.max(0, q.timeLimit-Math.floor((Date.now()-s.questionStartedAt)/1000)); const host=document.getElementById('timerText'); const player=document.getElementById('playerTimer'); if(host) host.textContent='00:'+String(left).padStart(2,'0'); if(player) player.textContent=left; if(left<=0 && this.mode==='host' && s.phase==='question') this.forceShowResults(); }; if(this.timerInterval) clearInterval(this.timerInterval); update(); this.timerInterval=setInterval(update,1000); }
+  renderResultHost(s){ const q=s.currentQuestion; if(!q) return; document.getElementById('resultQuestionText').textContent=q.text; document.getElementById('correctAnswerText').textContent=q.options[s.correctAnswer]; this.renderChart(q.options,s.counts||[],s.correctAnswer); }
+  renderChart(labels,data,correctIndex){ const ctx=document.getElementById('resultChart').getContext('2d'); if(this.chartInstance) this.chartInstance.destroy(); const bg=labels.map((_,i)=>i===correctIndex?THEME_COLORS[i].hex+'CC':'#e5e7eb'); this.chartInstance=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:bg,borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}}); }
+  renderLeaderboard(s){ const list=document.getElementById('leaderboardList'); const rows=(s.leaderboard||[]).slice(0,5); list.innerHTML=rows.length?rows.map((p,i)=>`<li class="px-8 py-4 flex items-center justify-between"><div class="flex items-center"><div class="w-8 h-8 rounded-full ${i===0?'bg-yellow-400 text-white':i===1?'bg-gray-300 text-gray-700':i===2?'bg-amber-600 text-white':'bg-gray-100 text-gray-500'} flex items-center justify-center font-bold mr-4">${i+1}</div><span class="text-xl font-bold">${p.name}${p.isEliminated?' <span class="text-sm text-red-500">脱落</span>':''}</span></div><span class="text-2xl font-black text-[#001E62]">${p.score} <span class="text-sm text-gray-400 font-normal">pt</span></span></li>`).join(''):'<li class="p-8 text-center text-gray-500">参加者のデータがありません</li>'; }
+  renderPlayer(s){ const me=s.players?.[this.myPlayerId]; if(me){ document.getElementById('playerScoreDisplay').classList.remove('hidden'); document.getElementById('playerScoreDisplay').textContent='スコア: '+me.score; }
+    if(!this.myName || !me){ this.hideAll(); this.show('playerView'); this.show('playerLogin'); return; }
+    if(s.phase==='lobby'){ this.hideAll(); this.show('playerView'); this.show('playerWaiting'); document.getElementById('playerWaitingTitle').textContent=`こんにちは、${this.myName}さん！`; document.getElementById('playerWaitingDesc').textContent='ゲーム開始をお待ちください...'; return; }
+    if(me.isEliminated && s.phase!=='end'){ this.hideAll(); this.show('playerView'); this.show('playerEliminated'); return; }
+    if(s.phase==='question'){ if(me.currentAnswer!==null){ this.hideAll(); this.show('playerView'); this.show('playerAnswered'); document.getElementById('playerSelectedOptionText').textContent='回答済み'; } else { this.renderQuestionPlayer(s); } return; }
+    if(s.phase==='result'){ this.hideAll(); this.show('playerView'); this.show('playerWaiting'); document.getElementById('playerWaitingTitle').textContent='スクリーンをご覧ください'; const st=s.playerStates?.[this.myPlayerId]; document.getElementById('playerWaitingDesc').textContent=st?.isCorrect?'🎉 正解です！次の問題を待っています...':`❌ 不正解！現在のミス回数: ${me.wrongCount} / 5`; return; }
+    if(s.phase==='end'){ this.hideAll(); this.show('playerView'); this.show('playerEndView'); document.getElementById('playerFinalScore').textContent=me.score; }
+  }
+  renderQuestionPlayer(s){ const q=s.currentQuestion; this.hideAll(); this.show('playerView'); this.show('playerQuestionView'); document.getElementById('playerQuestionNum').textContent='Q'+(s.currentQuestionIndex+1); document.getElementById('playerQuestionText').textContent=q.text; document.getElementById('playerOptionsContainer').innerHTML=''; q.options.forEach((opt,i)=>{ const c=THEME_COLORS[i]; const btn=document.createElement('button'); btn.className=`w-full text-left bg-white border-2 border-gray-100 p-4 rounded-2xl shadow-sm mb-3 flex items-center gap-4 transition-all active:scale-95 ${c.hover} hover:text-white group`; btn.innerHTML=`<div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 group-hover:bg-white group-hover:bg-opacity-20 group-hover:text-white">${String.fromCharCode(65+i)}</div><span class="text-lg font-bold text-gray-700 group-hover:text-white flex-1">${opt}</span>`; btn.onclick=()=>this.submitAnswer(i,opt,btn); document.getElementById('playerOptionsContainer').appendChild(btn); }); this.renderCountdown(s); }
+}
+const app=new QuizApp();
+window.addEventListener('DOMContentLoaded',()=>{ if(window.lucide) lucide.createIcons(); const p=new URLSearchParams(location.search); app.setMode(p.get('mode')==='player'?'player':'host'); });
+</script>
+</body>
+</html>
